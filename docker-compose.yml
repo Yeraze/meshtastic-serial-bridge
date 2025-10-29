@@ -1,25 +1,24 @@
 # Docker Compose for Serial-to-TCP Bridge
 # Usage:
-#   docker compose up -d                          # Start in background
-#   docker compose logs -f                        # View logs
-#   docker compose down                           # Stop and remove
+#   docker compose up -d     # Start
+#   docker compose logs -f   # View logs
+#   docker compose down      # Stop
 
 services:
   serial-bridge:
-    image: meshmonitor-serial-bridge
+    image: meshtastic-serial-bridge
     container_name: serial-bridge
     network_mode: host  # Allows localhost TCP communication
     restart: unless-stopped
     devices:
-      # Serial device passthrough
       - /dev/ttyUSB0:/dev/ttyUSB0
     environment:
-      # Optional: can override via .env file
+      # Customize these as needed
       - SERIAL_DEVICE=/dev/ttyUSB0
       - BAUD_RATE=115200
-    command: /dev/ttyUSB0 --baud 115200 --verbose
+      - TCP_PORT=4403
     healthcheck:
-      test: ["CMD", "python3", "-c", "import socket; s = socket.socket(); s.connect(('127.0.0.1', 4403)); s.close()"]
+      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 4403"]
       interval: 30s
       timeout: 10s
       retries: 3

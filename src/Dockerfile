@@ -1,29 +1,15 @@
-FROM python:3.11-slim
+FROM alpine:latest
 
-LABEL org.opencontainers.image.title="MeshMonitor BLE Bridge"
-LABEL org.opencontainers.image.description="Bluetooth Low Energy to TCP bridge for Meshtastic devices"
-LABEL org.opencontainers.image.source="https://github.com/Yeraze/meshmonitor"
+# Install socat and python3 (for HUPCL management)
+RUN apk add --no-cache socat python3
 
-# Install system dependencies for BLE
-RUN apt-get update && apt-get install -y \
-    bluetooth \
-    bluez \
-    && rm -rf /var/lib/apt/lists/*
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Set working directory
-WORKDIR /app
+# Default environment variables
+ENV SERIAL_DEVICE=/dev/ttyUSB0
+ENV BAUD_RATE=115200
+ENV TCP_PORT=4403
 
-# Install Python dependencies
-RUN pip install --no-cache-dir \
-    meshtastic==2.3.12 \
-    bleak==0.21.1
-
-# Copy bridge script
-COPY ble_tcp_bridge.py /app/
-
-# Expose TCP port
-EXPOSE 4403
-
-# Default command (can be overridden with BLE_ADDRESS env var)
-ENTRYPOINT ["python", "ble_tcp_bridge.py"]
-CMD ["--help"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -8,24 +8,46 @@ This project uses **socat** (a mature serial bridging tool) instead of custom co
 
 ### Features
 
-✅ **Fully Automated** - HUPCL disabled automatically on startup  
-✅ **Zero Configuration** - Works out of the box  
-✅ **Production Ready** - Built on industry-standard socat  
-✅ **Tiny Footprint** - Only ~47MB Alpine image  
-✅ **Auto-Restart** - Survives reboots with `restart: unless-stopped`  
+✅ **Fully Automated** - HUPCL disabled automatically on startup
+✅ **Zero Configuration** - Works out of the box
+✅ **Production Ready** - Built on industry-standard socat
+✅ **Tiny Footprint** - Only ~47MB Alpine image
+✅ **Auto-Restart** - Survives reboots with `restart: unless-stopped`
 ✅ **Works Perfectly** - Full meshtastic CLI compatibility
+
+## Prerequisites
+
+### Device Configuration
+
+Your Meshtastic device must have **serial mode enabled**. Configure using the CLI:
+
+```bash
+# Enable serial with correct settings
+meshtastic --set serial.enabled true
+meshtastic --set serial.echo false
+meshtastic --set serial.mode SIMPLE
+meshtastic --set serial.baud BAUD_115200
+
+# Verify settings
+meshtastic --get serial
+```
+
+**Important Settings:**
+- `serial.enabled` = `true` (serial interface enabled)
+- `serial.echo` = `false` (disable echo to prevent confusion)
+- `serial.mode` = `SIMPLE` (default protocol mode)
+- `serial.baud` = `BAUD_115200` (must match bridge configuration)
+
+> **Note:** These are the default settings for most devices. If your device was working with the meshtastic CLI directly via USB, these settings are likely already correct.
 
 ## Quick Start
 
 ```bash
-# Clone or navigate to this directory
-cd /home/yeraze/Development/meshtastic-serial-bridge
-
 # Build the image
-docker build -t socat-bridge -f src/Dockerfile.socat src/
+docker build -t meshtastic-serial-bridge -f src/Dockerfile src/
 
 # Start the bridge
-docker compose -f docker-compose-socat.yml up -d
+docker compose up -d
 
 # Test it
 meshtastic --host localhost --info
@@ -58,7 +80,7 @@ meshtastic --host localhost --sendtext "Hello mesh"
 
 ## Configuration
 
-Edit `docker-compose-socat.yml` to customize:
+Edit `docker-compose.yml` to customize:
 
 ```yaml
 environment:
@@ -71,10 +93,10 @@ environment:
 
 ```bash
 # View logs
-docker compose -f docker-compose-socat.yml logs -f
+docker compose logs -f
 
 # Check startup
-docker compose -f docker-compose-socat.yml logs | head -15
+docker compose logs | head -15
 ```
 
 Expected output:
@@ -93,17 +115,17 @@ Starting socat bridge...
 ## Stopping
 
 ```bash
-docker compose -f docker-compose-socat.yml down
+docker compose down
 ```
 
 ## Files
 
 ```
 ├── src/
-│   ├── Dockerfile.socat         # Alpine + socat + python3
-│   └── entrypoint-socat.sh      # Startup script (HUPCL + socat)
-├── docker-compose-socat.yml     # Service definition
-└── README-SOCAT.md              # Detailed documentation
+│   ├── Dockerfile          # Alpine + socat + python3
+│   └── entrypoint.sh       # Startup script (HUPCL + socat)
+├── docker-compose.yml      # Service definition
+└── README.md               # This file
 ```
 
 ## Why socat?
@@ -123,7 +145,7 @@ Ensure `/dev/ttyUSB0` exists and is passed through in docker-compose
 
 ### Port in use
 ```bash
-docker compose -f docker-compose-socat.yml down
+docker compose down
 ```
 
 ### Permission denied
@@ -131,6 +153,18 @@ Device must be accessible to the container (check host permissions)
 
 ### Device still reboots
 Check logs - HUPCL disable may have failed
+
+### Serial settings mismatch
+Verify device baud rate matches bridge configuration (default: 115200):
+```bash
+meshtastic --get serial.baud
+```
+
+### Device not responding
+Ensure serial is enabled on the device:
+```bash
+meshtastic --get serial.enabled
+```
 
 ## Architecture
 
