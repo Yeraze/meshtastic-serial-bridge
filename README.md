@@ -24,11 +24,8 @@ This project uses **socat** (a mature serial bridging tool) instead of custom co
 Your Meshtastic device must have **serial mode enabled**. Configure using the CLI:
 
 ```bash
-# Enable serial with correct settings
-meshtastic --set serial.enabled true
-meshtastic --set serial.echo false
-meshtastic --set serial.mode SIMPLE
-meshtastic --set serial.baud BAUD_115200
+# Enable serial with correct settings (all on one line to avoid multiple reboots)
+meshtastic --set serial.enabled true --set serial.echo false --set serial.mode SIMPLE --set serial.baud BAUD_115200
 
 # Verify settings
 meshtastic --get serial
@@ -179,6 +176,7 @@ Simple, reliable, production-ready!
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=yeraze/meshtastic-serial-bridge&type=date&legend=top-left)](https://www.star-history.com/#yeraze/meshtastic-serial-bridge&type=date&legend=top-left)
+
 ## License
 
 MIT
