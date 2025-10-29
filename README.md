@@ -11,11 +11,17 @@ This project uses **socat** (a mature serial bridging tool) instead of custom co
 ### Features
 
 ✅ **Fully Automated** - HUPCL disabled automatically on startup
+
 ✅ **Zero Configuration** - Works out of the box
+
 ✅ **Production Ready** - Built on industry-standard socat
+
 ✅ **Tiny Footprint** - Only ~47MB Alpine image
+
 ✅ **Auto-Restart** - Survives reboots with `restart: unless-stopped`
+
 ✅ **Works Perfectly** - Full meshtastic CLI compatibility
+
 ✅ **mDNS Discovery** - Automatic network discovery via Avahi
 
 ## Prerequisites
