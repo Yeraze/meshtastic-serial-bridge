@@ -1,0 +1,32 @@
+# Docker Compose for Serial-to-TCP Bridge
+# Usage:
+#   docker compose -f docker-compose.serial.yml up                              # Uses default SERIAL_DEVICE below
+#   SERIAL_DEVICE=/dev/ttyUSB1 docker compose -f docker-compose.serial.yml up # Override with your device
+
+services:
+  serial-bridge:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.serial
+    container_name: meshmonitor-serial-bridge
+    network_mode: host  # Allows localhost TCP communication
+    restart: unless-stopped
+    devices:
+      # Pass through the serial device to the container
+      - ${SERIAL_DEVICE:-/dev/ttyUSB0}:${SERIAL_DEVICE:-/dev/ttyUSB0}
+    volumes:
+      - /etc/avahi/services:/etc/avahi/services  # mDNS autodiscovery
+    environment:
+      # Serial device path
+      # Find it using: ls -l /dev/tty* | grep USB
+      # To change: Edit the device below or override with SERIAL_DEVICE environment variable
+      - SERIAL_DEVICE=${SERIAL_DEVICE:-/dev/ttyUSB0}
+      # Baud rate (default: 115200, some devices use 38400)
+      - BAUD_RATE=${BAUD_RATE:-115200}
+    command: ${SERIAL_DEVICE:-/dev/ttyUSB0} --baud ${BAUD_RATE:-115200} --verbose
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s = socket.socket(); s.connect(('127.0.0.1', 4403)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
