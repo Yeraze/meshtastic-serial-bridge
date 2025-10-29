@@ -25,6 +25,7 @@ jobs:
           context: ./src
           file: ./src/Dockerfile
           push: false
+          load: true
           tags: meshtastic-serial-bridge:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
