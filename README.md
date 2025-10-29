@@ -1,6 +1,8 @@
 # Meshtastic Serial-to-TCP Bridge
+[![Docker Image](https://ghcr-badge.egpl.dev/yeraze/meshtastic-serial-bridge/latest_tag?color=%235b4566&ignore=latest,main&label=version&trim=)](https://github.com/Yeraze/meshmonitor/pkgs/container/meshtastic-serial-bridge)
+[![Docker Pulls](https://ghcr-badge.egpl.dev/yeraze/meshtastic-serial-bridge/size?color=%235b4566&tag=latest&label=image%20size&trim=)](https://github.com/Yeraze/meshmonitor/pkgs/container/meshtastic-serial-bridge)
 
-Convert a USB-connected Meshtastic device into a network-accessible TCP device.
+Convert a USB-connected Meshtastic device into a network-accessible TCP device.  Designed for use with MeshMonitor but should work with any TCP-compatible Meshtastic application!
 
 ## Solution: socat-based Bridge
 
@@ -174,6 +176,9 @@ meshtastic CLI → TCP:4403 → socat → /dev/ttyUSB0 → Meshtastic Device
 
 Simple, reliable, production-ready!
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yeraze/meshtastic-serial-bridge&type=date&legend=top-left)](https://www.star-history.com/#yeraze/meshtastic-serial-bridge&type=date&legend=top-left)
 ## License
 
 MIT
