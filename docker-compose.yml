@@ -6,10 +6,11 @@
 
 services:
   serial-bridge:
-    image: meshtastic-serial-bridge
+    image: ghcr.io/yeraze/meshtastic-serial-bridge:latest
     container_name: serial-bridge
-    network_mode: host  # Allows localhost TCP communication
     restart: unless-stopped
+    ports:
+      - "4403:4403"
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
     volumes:
