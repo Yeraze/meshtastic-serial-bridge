@@ -16,6 +16,7 @@ This project uses **socat** (a mature serial bridging tool) instead of custom co
 ✅ **Tiny Footprint** - Only ~47MB Alpine image
 ✅ **Auto-Restart** - Survives reboots with `restart: unless-stopped`
 ✅ **Works Perfectly** - Full meshtastic CLI compatibility
+✅ **mDNS Discovery** - Automatic network discovery via Avahi
 
 ## Prerequisites
 
@@ -86,7 +87,35 @@ environment:
   - SERIAL_DEVICE=/dev/ttyUSB0   # Change serial device
   - BAUD_RATE=115200             # Change baud rate
   - TCP_PORT=4403                # Change TCP port
+  - SERVICE_NAME=My Bridge       # Optional: customize mDNS service name
 ```
+
+## Network Discovery (mDNS)
+
+The bridge automatically registers itself with Avahi for network-wide discovery. This allows devices and applications to find your bridge automatically without needing to know its IP address.
+
+### Discovering Bridges on Your Network
+
+```bash
+# List all Meshtastic services on the network
+avahi-browse -rt _meshtastic._tcp
+
+# You'll see output like:
+# = eno1 IPv4 Meshtastic Serial Bridge (_dev_ttyUSB0) _meshtastic._tcp local
+#   hostname = [your-host.local]
+#   address = [192.168.x.x]
+#   port = [4403]
+#   txt = ["bridge=serial" "port=4403" "serial_device=/dev/ttyUSB0" "baud_rate=115200"]
+```
+
+### mDNS Service Details
+
+- **Service Type**: `_meshtastic._tcp`
+- **Service Name**: Customizable via `SERVICE_NAME` environment variable
+- **TXT Records**: Includes bridge type, port, serial device, and baud rate
+- **Automatic Cleanup**: Service is unregistered when container stops
+
+The mDNS feature requires the host's `/etc/avahi/services` directory to be mounted (already configured in `docker-compose.yml`).
 
 ## Logs
 
@@ -106,6 +135,11 @@ Meshtastic Serial Bridge starting...
   TCP Port: 4403
 Disabling HUPCL on /dev/ttyUSB0...
 ✓ HUPCL disabled
+Registering mDNS service...
+✓ mDNS service registered: Meshtastic Serial Bridge (_dev_ttyUSB0)
+  Service type: _meshtastic._tcp.local.
+  Port: 4403
+  Test with: avahi-browse -rt _meshtastic._tcp
 Starting socat bridge...
   Listening on: 0.0.0.0:4403
   Connected to: /dev/ttyUSB0 @ 115200baud

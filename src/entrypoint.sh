@@ -39,6 +39,48 @@ except Exception as e:
 # Small delay to let device settle
 sleep 0.5
 
+# Register mDNS service via Avahi (if available)
+AVAHI_DIR="/etc/avahi/services"
+if [ -d "$AVAHI_DIR" ] && [ -w "$AVAHI_DIR" ]; then
+    echo "Registering mDNS service..."
+
+    # Create sanitized service name
+    SANITIZED_DEVICE=$(echo "$DEVICE" | sed 's/[\/\.]/_/g')
+    SERVICE_NAME="${SERVICE_NAME:-Meshtastic Serial Bridge ($SANITIZED_DEVICE)}"
+    SERVICE_FILE="$AVAHI_DIR/meshtastic-serial-bridge-${SANITIZED_DEVICE}.service"
+
+    # Create Avahi service XML
+    cat > "$SERVICE_FILE" << EOF
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name>${SERVICE_NAME}</name>
+  <service>
+    <type>_meshtastic._tcp</type>
+    <port>${TCP_PORT}</port>
+    <txt-record>bridge=serial</txt-record>
+    <txt-record>port=${TCP_PORT}</txt-record>
+    <txt-record>serial_device=${DEVICE}</txt-record>
+    <txt-record>baud_rate=${BAUD}</txt-record>
+  </service>
+</service-group>
+EOF
+
+    echo "✓ mDNS service registered: ${SERVICE_NAME}"
+    echo "  Service type: _meshtastic._tcp.local."
+    echo "  Port: $TCP_PORT"
+    echo "  Test with: avahi-browse -rt _meshtastic._tcp"
+
+    # Set up cleanup trap to remove service file on exit
+    trap "rm -f '$SERVICE_FILE' 2>/dev/null" EXIT INT TERM
+else
+    echo "⚠ Avahi service directory not available - mDNS discovery disabled"
+    echo "  To enable: mount host's /etc/avahi/services directory"
+    echo "  Add to docker-compose.yml:"
+    echo "    volumes:"
+    echo "      - /etc/avahi/services:/etc/avahi/services"
+fi
+
 # Start socat
 echo "Starting socat bridge..."
 echo "  Listening on: 0.0.0.0:$TCP_PORT"

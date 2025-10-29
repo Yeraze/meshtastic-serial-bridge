@@ -12,11 +12,16 @@ services:
     restart: unless-stopped
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
+    volumes:
+      # Mount host's Avahi services directory for mDNS autodiscovery
+      - /etc/avahi/services:/etc/avahi/services
     environment:
       # Customize these as needed
       - SERIAL_DEVICE=/dev/ttyUSB0
       - BAUD_RATE=115200
       - TCP_PORT=4403
+      # Optional: customize the mDNS service name
+      # - SERVICE_NAME=My Meshtastic Bridge
     healthcheck:
       test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 4403"]
       interval: 30s
