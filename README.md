@@ -56,10 +56,12 @@ meshtastic --host localhost --info
 ## What Happens on Startup
 
 The container automatically:
-1. Checks that `/dev/ttyUSB0` exists
-2. **Disables HUPCL** to prevent device reboots
-3. Starts socat listening on `0.0.0.0:4403`
-4. Bridges TCP ↔ Serial at 115200 baud
+1. Displays version number (from `src/VERSION`)
+2. Checks that `/dev/ttyUSB0` exists
+3. **Disables HUPCL** to prevent device reboots
+4. Registers mDNS service for network discovery
+5. Starts socat listening on `0.0.0.0:4403`
+6. Bridges TCP ↔ Serial at 115200 baud
 
 ## Usage
 
@@ -129,7 +131,7 @@ docker compose logs | head -15
 
 Expected output:
 ```
-Meshtastic Serial Bridge starting...
+Meshtastic Serial Bridge v1.0.0
   Device: /dev/ttyUSB0
   Baud: 115200
   TCP Port: 4403

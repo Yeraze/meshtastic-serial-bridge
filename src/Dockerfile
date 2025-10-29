@@ -3,6 +3,9 @@ FROM alpine:latest
 # Install socat, python3 (for HUPCL management), and avahi (for mDNS discovery)
 RUN apk add --no-cache socat python3 avahi
 
+# Copy version file
+COPY VERSION /VERSION
+
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

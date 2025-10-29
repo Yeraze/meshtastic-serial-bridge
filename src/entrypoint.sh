@@ -7,8 +7,9 @@ set -e
 DEVICE="${SERIAL_DEVICE:-/dev/ttyUSB0}"
 BAUD="${BAUD_RATE:-115200}"
 TCP_PORT="${TCP_PORT:-4403}"
+VERSION=$(cat /VERSION 2>/dev/null || echo "unknown")
 
-echo "Meshtastic Serial Bridge starting..."
+echo "Meshtastic Serial Bridge v${VERSION}"
 echo "  Device: $DEVICE"
 echo "  Baud: $BAUD"
 echo "  TCP Port: $TCP_PORT"
