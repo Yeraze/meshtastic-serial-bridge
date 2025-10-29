@@ -1,85 +1,192 @@
-# Claude Code Instructions for BLE Bridge
+# Claude Code Instructions for Meshtastic Serial Bridge
 
 ## Project Context
 
-This is the MeshMonitor BLE Bridge - a Python/Docker application that bridges Bluetooth Low Energy Meshtastic devices to TCP for MeshMonitor compatibility.
+This is the Meshtastic Serial-to-TCP Bridge - a socat-based Docker application that bridges USB-connected Meshtastic devices to TCP for MeshMonitor and other TCP-compatible applications.
 
-## Key Instructions
+## Development Workflow
 
-- **Primary Reference:** Always consult `docs/CLAUDE_BLE_BRIDGE.md` first for technical context
-- **Source Code:** Main application is `src/ble_tcp_bridge.py`
-- **Docker Build:** Build context is `src/` directory
-- **Testing:** Run locally with Python or via Docker container
+### CRITICAL: Pull Request Workflow
 
-## Critical Technical Details
+**⚠️ NEVER push directly to `main` branch!**
 
-### BLE Protocol
-- Service UUID: `6ba1b218-15a8-461f-9fa8-5dcae273eafd`
-- ToRadio (write): `f75c76d2-129e-4dad-a1dd-7866124401e7`
-- FromRadio (read): `2c55e69e-4993-11ed-b878-0242ac120002`
-- Uses raw protobuf bytes (no framing)
+All changes MUST go through pull requests:
 
-### TCP Protocol  
-- Frame: `[0x94][0xC3][LENGTH_MSB][LENGTH_LSB][PROTOBUF]`
-- Listen on `0.0.0.0:4403` (not localhost!)
-- Big-endian 16-bit length field
-
-### Critical Implementation Notes
-
-1. **BLE Client Access:** Must get BleakClient from BLEInterface:
-   ```python
-   self.ble_client = self.ble_interface.client
+1. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/description
    ```
 
-2. **Writing to BLE:** Use direct GATT write:
-   ```python
-   await self.ble_client.write_gatt_char(self.TORADIO_UUID, packet_bytes)
+2. **Make your changes and commit:**
+   ```bash
+   git add .
+   git commit -m "Description of changes"
    ```
 
-3. **Docker Requirements:**
-   - `privileged: true` - for BLE hardware access
-   - `network_mode: host` - for localhost TCP
-   - Volume: `/var/run/dbus:/var/run/dbus` - D-Bus access
-   - Volume: `/var/lib/bluetooth:/var/lib/bluetooth:ro` - Pairing info
+3. **Push branch and create PR:**
+   ```bash
+   git push -u origin feature/description
+   gh pr create --title "Title" --body "Description"
+   ```
 
-## Known Issues
+4. **Wait for review and CI checks to pass**
 
-- **Method names:** BLEInterface API varies, use BleakClient directly
-- **Address format:** May need to strip colons from MAC address
-- **Localhost binding:** Always use `0.0.0.0` not `localhost`
-- **Pairing:** May need host-level pairing via bluetoothctl first
+5. **Merge via GitHub UI** (not command line)
 
-## Testing Workflow
+6. **After merge, return to main:**
+   ```bash
+   git checkout main
+   git pull
+   ```
 
-```bash
-# Local testing
-python src/ble_tcp_bridge.py --scan
-python src/ble_tcp_bridge.py AA:BB:CC:DD:EE:FF --verbose
+### Branch Protection
 
-# Docker testing
-docker build -t meshmonitor-ble-bridge src/
-docker run --rm --privileged --network host \
-  -v /var/run/dbus:/var/run/dbus \
-  meshmonitor-ble-bridge AA:BB:CC:DD:EE:FF --verbose
-```
+The `main` branch is protected with:
+- Required pull request reviews
+- Required status checks (CI/CD)
+- No force pushes
+- No direct commits
 
-## Documentation Hierarchy
+## Key Architecture
 
-1. **Quick answers:** `docs/CLAUDE_BLE_BRIDGE.md`
-2. **Deep dive:** `docs/BLE_TCP_BRIDGE_ANALYSIS.md`  
-3. **User guide:** `docs/README_BLE_BRIDGE.md`
-4. **Deployment:** `docs/DEPLOY_BLE_BRIDGE.md`
+### Solution: socat-based Bridge
+
+This project uses **socat** (a mature serial bridging tool) instead of custom code for maximum reliability.
+
+### Key Files
+
+- **`src/Dockerfile`** - Alpine + socat + python3 + avahi
+- **`src/entrypoint.sh`** - Startup script (HUPCL management + mDNS + socat)
+- **`docker-compose.yml`** - Service definition
+- **`README.md`** - User documentation
+
+### Critical Technical Details
+
+#### Serial Configuration
+- **HUPCL Management:** Disabled via Python's `termios` module to prevent device reboots on disconnect
+- **Baud Rate:** 115200 (default, configurable)
+- **Device:** `/dev/ttyUSB0` (default, configurable)
+
+#### TCP Protocol
+- **Port:** 4403 (default, configurable)
+- **Binding:** `0.0.0.0` (allows remote connections)
+- **Frame Format:** `[0x94][0xC3][LENGTH_MSB][LENGTH_LSB][PROTOBUF]`
+
+#### mDNS Discovery
+- **Service Type:** `_meshtastic._tcp`
+- **Implementation:** Avahi service file in `/etc/avahi/services/`
+- **Auto-cleanup:** Service removed on container stop
+- **Requires:** Host's `/etc/avahi/services` mounted as volume
+
+#### Docker Requirements
+- **Device passthrough:** `--device=/dev/ttyUSB0:/dev/ttyUSB0`
+- **Network mode:** `host` (for localhost TCP and mDNS)
+- **Avahi volume:** `/etc/avahi/services:/etc/avahi/services` (for mDNS)
+- **Restart policy:** `unless-stopped`
 
 ## Development Priorities
 
-1. **Stability:** Connection reliability over features
-2. **Logging:** Verbose debugging output essential
-3. **Error handling:** Graceful failures with clear messages
-4. **Documentation:** Keep docs updated with code changes
+1. **Simplicity:** Keep the socat-based approach simple and maintainable
+2. **Reliability:** Connection stability over features
+3. **Zero Dependencies:** No Python packages required (uses only built-in `termios`)
+4. **Documentation:** Keep README updated with all changes
 
-## When Stuck
+## Testing Workflow
 
-- Check `docs/CLAUDE_BLE_BRIDGE.md` troubleshooting section
-- Review BLE connection logs with `--verbose`
-- Test BLE directly with `bluetoothctl`
-- Verify TCP connectivity with `telnet <ip> 4403`
+### Local Testing
+```bash
+# Build image
+docker build -t meshtastic-serial-bridge -f src/Dockerfile src/
+
+# Start bridge
+docker compose up -d
+
+# Test with meshtastic CLI
+meshtastic --host localhost --info
+
+# View logs
+docker compose logs -f
+
+# Test mDNS discovery
+avahi-browse -rt _meshtastic._tcp
+```
+
+### Testing Changes
+Before creating a PR:
+1. Rebuild the Docker image
+2. Test basic connectivity with `meshtastic --host localhost --info`
+3. Verify mDNS discovery with `avahi-browse`
+4. Check logs for errors
+5. Verify HUPCL is disabled (no device reboots on disconnect)
+
+## Container Size
+
+Target: ~47MB Alpine-based image
+
+Current dependencies:
+- `socat` - Serial to TCP bridging
+- `python3` - Only for HUPCL management (built-in termios module)
+- `avahi` - mDNS autodiscovery
+
+## Common Tasks
+
+### Adding a New Feature
+1. Create feature branch: `git checkout -b feature/my-feature`
+2. Make changes
+3. Test locally
+4. Commit changes
+5. Push and create PR
+6. Wait for review
+
+### Updating Documentation
+1. Create branch: `git checkout -b docs/update-readme`
+2. Update README.md
+3. Commit and create PR
+4. Merge after review
+
+### Fixing a Bug
+1. Create branch: `git checkout -b fix/bug-description`
+2. Fix the issue
+3. Test thoroughly
+4. Commit and create PR with fix description
+5. Reference any related issues
+
+## Troubleshooting
+
+### Device Reboots on Disconnect
+- Check that HUPCL is being disabled (see startup logs)
+- Verify Python3 is installed in container
+- Check that `/dev/ttyUSB0` permissions are correct
+
+### mDNS Not Working
+- Verify `/etc/avahi/services` is mounted
+- Check that avahi daemon is running on host
+- Test with `avahi-browse -rt _meshtastic._tcp`
+
+### Connection Issues
+- Verify device exists: `ls -l /dev/ttyUSB0`
+- Check baud rate matches device settings
+- Test direct connection: `screen /dev/ttyUSB0 115200`
+- Review container logs: `docker compose logs`
+
+### Port Already in Use
+- Stop existing bridge: `docker compose down`
+- Check for other services: `ss -tnlp | grep 4403`
+
+## What NOT to Do
+
+- ❌ Push directly to `main` branch
+- ❌ Add Python package dependencies (keep it dependency-free)
+- ❌ Replace socat with custom Python code
+- ❌ Skip testing before creating PR
+- ❌ Commit Python cache files (`__pycache__`, `.pytest_cache`)
+
+## What TO Do
+
+- ✅ Always use feature branches
+- ✅ Create PRs for all changes
+- ✅ Test locally before pushing
+- ✅ Keep the solution simple and socat-based
+- ✅ Update README when adding features
+- ✅ Use meaningful commit messages
+- ✅ Reference issues in PRs when applicable
