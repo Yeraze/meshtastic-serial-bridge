@@ -43,10 +43,7 @@ meshtastic --get serial
 ## Quick Start
 
 ```bash
-# Build the image
-docker build -t meshtastic-serial-bridge -f src/Dockerfile src/
-
-# Start the bridge
+# Start the bridge (automatically pulls latest image)
 docker compose up -d
 
 # Test it
