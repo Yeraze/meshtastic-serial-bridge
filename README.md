@@ -93,7 +93,18 @@ environment:
   - BAUD_RATE=115200             # Change baud rate
   - TCP_PORT=4403                # Change TCP port
   - SERVICE_NAME=My Bridge       # Optional: customize mDNS service name
+  - RECONNECT_DELAY=5            # Optional: seconds to wait before reconnecting (default: 5)
 ```
+
+### Reconnection Behavior
+
+When the USB device is disconnected, the bridge will:
+1. Wait for the configured `RECONNECT_DELAY` (default: 5 seconds)
+2. Wait for the device to reappear
+3. Re-initialize HUPCL settings
+4. Restart the bridge
+
+This prevents log spam when devices are temporarily disconnected.
 
 ## Network Discovery (mDNS)
 
@@ -138,8 +149,9 @@ Meshtastic Serial Bridge v1.0.0
   Device: /dev/ttyUSB0
   Baud: 115200
   TCP Port: 4403
+  Reconnect Delay: 5s
 Disabling HUPCL on /dev/ttyUSB0...
-✓ HUPCL disabled
+HUPCL disabled
 Registering mDNS service...
 ✓ mDNS service registered: Meshtastic Serial Bridge (_dev_ttyUSB0)
   Service type: _meshtastic._tcp.local.
