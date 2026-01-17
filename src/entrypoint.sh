@@ -8,6 +8,20 @@ TCP_PORT="${TCP_PORT:-4403}"
 RECONNECT_DELAY="${RECONNECT_DELAY:-5}"
 VERSION=$(cat /VERSION 2>/dev/null || echo "unknown")
 
+# Validate RECONNECT_DELAY is a positive integer
+case "$RECONNECT_DELAY" in
+    ''|*[!0-9]*|0)
+        echo "Warning: Invalid RECONNECT_DELAY '$RECONNECT_DELAY', using default of 5"
+        RECONNECT_DELAY=5
+        ;;
+esac
+
+# Minimum runtime (seconds) for socat to be considered a successful connection
+# If socat exits faster than this, it's likely a configuration error
+MIN_RUNTIME=3
+RAPID_FAIL_COUNT=0
+MAX_RAPID_FAILS=5
+
 echo "Meshtastic Serial Bridge v${VERSION}"
 echo "  Device: $DEVICE"
 echo "  Baud: $BAUD"
@@ -19,7 +33,7 @@ wait_for_device() {
     if [ ! -e "$DEVICE" ]; then
         echo "Waiting for device $DEVICE..."
         while [ ! -e "$DEVICE" ]; do
-            sleep "$RECONNECT_DELAY"
+            sleep 1  # Poll every second for device availability
         done
         echo "Device $DEVICE found"
     fi
@@ -27,17 +41,25 @@ wait_for_device() {
 
 # Function to disable HUPCL to prevent device reboot on disconnect
 disable_hupcl() {
+    if [ ! -e "$DEVICE" ]; then
+        echo "Warning: Device $DEVICE not found, skipping HUPCL disable"
+        return 1
+    fi
     echo "Disabling HUPCL on $DEVICE..."
     python3 -c "
 import termios
 import sys
+import os
 
 try:
-    with open('$DEVICE') as f:
-        attrs = termios.tcgetattr(f)
+    fd = os.open('$DEVICE', os.O_RDWR | os.O_NOCTTY)
+    try:
+        attrs = termios.tcgetattr(fd)
         attrs[2] = attrs[2] & ~termios.HUPCL
-        termios.tcsetattr(f, termios.TCSAFLUSH, attrs)
-    print('HUPCL disabled')
+        termios.tcsetattr(fd, termios.TCSAFLUSH, attrs)
+        print('HUPCL disabled')
+    finally:
+        os.close(fd)
 except Exception as e:
     print(f'Warning: Could not disable HUPCL: {e}', file=sys.stderr)
     print('Device may reboot on disconnect', file=sys.stderr)
@@ -99,9 +121,31 @@ while true; do
     echo "  Connected to: $DEVICE @ ${BAUD}baud"
     echo
 
+    START_TIME=$(date +%s)
+
     socat \
         TCP-LISTEN:$TCP_PORT,fork,reuseaddr \
         FILE:$DEVICE,b$BAUD,raw,echo=0
+
+    EXIT_CODE=$?
+    END_TIME=$(date +%s)
+    RUNTIME=$((END_TIME - START_TIME))
+
+    # Check for rapid failures (likely configuration error)
+    if [ "$RUNTIME" -lt "$MIN_RUNTIME" ]; then
+        RAPID_FAIL_COUNT=$((RAPID_FAIL_COUNT + 1))
+        echo "Warning: socat exited after ${RUNTIME}s (exit code: $EXIT_CODE)"
+
+        if [ "$RAPID_FAIL_COUNT" -ge "$MAX_RAPID_FAILS" ]; then
+            echo "ERROR: Too many rapid failures ($MAX_RAPID_FAILS). Possible configuration error."
+            echo "  Check: device permissions, baud rate, port availability"
+            exit 1
+        fi
+        echo "Rapid failure $RAPID_FAIL_COUNT of $MAX_RAPID_FAILS"
+    else
+        # Successful runtime, reset counter
+        RAPID_FAIL_COUNT=0
+    fi
 
     echo "Bridge disconnected, waiting ${RECONNECT_DELAY}s before retry..."
     sleep "$RECONNECT_DELAY"
