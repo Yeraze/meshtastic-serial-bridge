@@ -124,7 +124,7 @@ while true; do
     START_TIME=$(date +%s)
 
     socat \
-        TCP-LISTEN:$TCP_PORT,fork,reuseaddr \
+        TCP-LISTEN:$TCP_PORT,fork,reuseaddr,max-children=1 \
         FILE:$DEVICE,b$BAUD,raw,echo=0
 
     EXIT_CODE=$?
