@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 # Entrypoint script for socat serial bridge
 # Handles HUPCL disabling and starts socat with reconnect support
 
@@ -6,6 +7,7 @@ DEVICE="${SERIAL_DEVICE:-/dev/ttyUSB0}"
 BAUD="${BAUD_RATE:-115200}"
 TCP_PORT="${TCP_PORT:-4403}"
 RECONNECT_DELAY="${RECONNECT_DELAY:-5}"
+DEVICE_TIMEOUT="${DEVICE_TIMEOUT:-60}"
 VERSION=$(cat /VERSION 2>/dev/null || echo "unknown")
 
 # Validate RECONNECT_DELAY is a positive integer
@@ -31,9 +33,15 @@ echo "  Reconnect Delay: ${RECONNECT_DELAY}s"
 # Function to wait for device to be available
 wait_for_device() {
     if [ ! -e "$DEVICE" ]; then
-        echo "Waiting for device $DEVICE..."
+        echo "Waiting for device $DEVICE (timeout: ${DEVICE_TIMEOUT}s)..."
+        WAITED=0
         while [ ! -e "$DEVICE" ]; do
-            sleep 1  # Poll every second for device availability
+            if [ "$WAITED" -ge "$DEVICE_TIMEOUT" ]; then
+                echo "ERROR: Device $DEVICE not found after ${DEVICE_TIMEOUT}s"
+                return 1
+            fi
+            sleep 1
+            WAITED=$((WAITED + 1))
         done
         echo "Device $DEVICE found"
     fi
@@ -70,7 +78,7 @@ except Exception as e:
 
 # Wait for device on initial startup
 wait_for_device
-disable_hupcl
+disable_hupcl || true
 
 # Register mDNS service via Avahi (if available)
 AVAHI_DIR="/etc/avahi/services"
@@ -123,11 +131,11 @@ while true; do
 
     START_TIME=$(date +%s)
 
+    EXIT_CODE=0
     socat \
-        TCP-LISTEN:$TCP_PORT,fork,reuseaddr,max-children=1 \
-        FILE:$DEVICE,b$BAUD,raw,echo=0
-
-    EXIT_CODE=$?
+        "TCP-LISTEN:$TCP_PORT,fork,reuseaddr,max-children=1" \
+        "FILE:$DEVICE,b$BAUD,raw,echo=0,clocal,cs8" \
+        || EXIT_CODE=$?
     END_TIME=$(date +%s)
     RUNTIME=$((END_TIME - START_TIME))
 
@@ -152,5 +160,5 @@ while true; do
 
     # Wait for device to reappear (in case it was unplugged)
     wait_for_device
-    disable_hupcl
+    disable_hupcl || true
 done
