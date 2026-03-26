@@ -133,7 +133,7 @@ while true; do
 
     EXIT_CODE=0
     socat \
-        "TCP-LISTEN:$TCP_PORT,fork,reuseaddr,max-children=1" \
+        "TCP-LISTEN:$TCP_PORT,reuseaddr" \
         "FILE:$DEVICE,b$BAUD,raw,echo=0,clocal,cs8" \
         || EXIT_CODE=$?
     END_TIME=$(date +%s)
