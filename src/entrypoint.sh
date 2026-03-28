@@ -8,6 +8,7 @@ BAUD="${BAUD_RATE:-115200}"
 TCP_PORT="${TCP_PORT:-4403}"
 RECONNECT_DELAY="${RECONNECT_DELAY:-5}"
 DEVICE_TIMEOUT="${DEVICE_TIMEOUT:-60}"
+SOCAT_DEBUG="${SOCAT_DEBUG:-}"
 VERSION=$(cat /VERSION 2>/dev/null || echo "unknown")
 
 # Validate RECONNECT_DELAY is a positive integer
@@ -132,7 +133,8 @@ while true; do
     START_TIME=$(date +%s)
 
     EXIT_CODE=0
-    socat -d -d \
+    # nonblock: prevents blocking reads on USB serial from stalling socat's relay loop
+    socat $SOCAT_DEBUG \
         "TCP-LISTEN:$TCP_PORT,reuseaddr" \
         "$DEVICE,b$BAUD,raw,echo=0,clocal,cs8,nonblock" \
         || EXIT_CODE=$?
