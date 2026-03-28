@@ -132,9 +132,9 @@ while true; do
     START_TIME=$(date +%s)
 
     EXIT_CODE=0
-    socat \
+    socat -d -d \
         "TCP-LISTEN:$TCP_PORT,reuseaddr" \
-        "FILE:$DEVICE,b$BAUD,raw,echo=0,clocal,cs8" \
+        "$DEVICE,b$BAUD,raw,echo=0,clocal,cs8,nonblock" \
         || EXIT_CODE=$?
     END_TIME=$(date +%s)
     RUNTIME=$((END_TIME - START_TIME))
